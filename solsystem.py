@@ -18,7 +18,7 @@ class CelestialBody:
         self.r = r
 
     def calc_force(self, other):
-        #uses newtons gravitational law to calculate the forces effecting the planet
+        #uses newtons gravitational law to calculate the force between bodies
         dx = other.x - self.x
         dy = other.y - self.y
         
@@ -33,6 +33,30 @@ class CelestialBody:
         fy = force * (dy / dist)
 
         return fx, fy
+        
+    def update_forces(bodies):
+        # sums every acting force and convers it to acceleration with netwon's second law
+    for body in bodies:
+        fx_tot = 0
+        fy_tot = 0
+        for other in bodies:
+            if other is body:
+                continue # makes sure that the body doesn't calc the force exerted on itself 
+            fx, fy = calc_force(other)
+            fx_tot += fx
+            fy_tot += fy 
+        body.ax = fx_tot / body.mass
+        body.ay = fy_tot / body.mass
+
+    def update_positions(bodies, dt):
+        for body in bodies:
+        # Update velocity from acceleration
+            body.vx += body.ax * dt
+            body.vy += body.ay * dt
+
+        # Update position from velocity
+            body.x += body.vx * dt
+            body.y += body.vy * dt
         
 
 def DrawCircle(r, x0, y0):
