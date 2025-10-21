@@ -19,6 +19,21 @@ class CelestialBody:
 
     def calc_force(self, other):
         #uses newtons gravitational law to calculate the forces effecting the planet
+        dx = other.x - self.x
+        dy = other.y - self.y
+        
+        dist = math.sqrt((dx**2 + dy**2)) # Pytagoras sats 
+
+        if dist == 0: # avoid dividing by 0
+            return 0, 0
+
+        force = G * (self.mass * other.mass) / dist**2
+
+        fx = force * (dx / dist)
+        fy = force * (dy / dist)
+
+        return fx, fy
+        
 
 def DrawCircle(r, x0, y0):
     points = []
