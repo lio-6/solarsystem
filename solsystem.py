@@ -69,7 +69,13 @@ def draw(stdscr, bodies, camera_y, camera_x, zoom):
         # draw if inside screen
         if 0 <= screen_x < width and 0 <= screen_y < height:
             try:
-                stdscr.addch(screen_y, screen_x, '*')
+                for x in range(int(screen_x - body.r * zoom), int(screen_x + body.r * zoom) + 1):
+                    for y in range(int(screen_y - body.r * zoom), int(screen_y + body.r * zoom) + 1):
+                        distance = math.sqrt(((x - screen_x))**2 + ((y - screen_y)*2)**2)
+                        if abs(distance) <= body.r:
+                            stdscr.addch(y, x, '0')
+            # allow small tolerance around from celery.contrib import rdb; rdb.set_trace()
+                    
             except curses.error:
                 pass  # ignore drawing errors at edges
 
@@ -103,9 +109,9 @@ def main(stdscr):
     stdscr.keypad(True)
 
     # initialize simulation
-    sun = CelestialBody("Sun", mass=1000, x=0, y=0, vx=0, vy=0, color="yellow", r=3)
-    planet1 = CelestialBody("Planet1", mass=1, x=50, y=0, vx=0, vy=3.5, color="blue", r=1)
-    planet2 = CelestialBody("Planet2", mass=2, x=100, y=0, vx=0, vy=2.5, color="green", r=1.5)
+    sun = CelestialBody("Sun", mass=1000, x=0, y=0, vx=0, vy=0, color="yellow", r=5)
+    planet1 = CelestialBody("Planet1", mass=1, x=50, y=0, vx=0, vy=3.5, color="blue", r=3)
+    planet2 = CelestialBody("Planet2", mass=2, x=100, y=0, vx=0, vy=2.5, color="green", r=4)
     bodies = [sun, planet1, planet2]
 
     dt = 0.1
