@@ -1,9 +1,10 @@
-import curses
 import math
-import time 
+import time
+
 
 """Constants"""
-G = 1 # gravitational constant used in newton's gravaty law simplified to one for easier numbers 
+G = 1  # simplified gravitational constant for easier numbers
+
 
 class CelestialBody:
     def __init__(self, name, mass, x, y, vx, vy, color, r):
@@ -19,78 +20,75 @@ class CelestialBody:
         self.ay = 0
 
     def calc_force(self, other):
-        #uses newtons gravitational law to calculate the force between bodies
+        # uses newton's gravitational law to calculate the force between bodies
         dx = other.x - self.x
         dy = other.y - self.y
-        
-        dist = math.sqrt((dx**2 + dy**2)) # Pytagoras sats 
 
-        if dist == 0: # avoid dividing by 0
-            return 0, 0
+        dist = math.sqrt(dx**2 + dy**2)
+
+        if dist == 0:
+            return 0, 0  # avoid dividing by zero
 
         force = G * (self.mass * other.mass) / dist**2
-
         fx = force * (dx / dist)
         fy = force * (dy / dist)
 
         return fx, fy
-        
+
+
 def update_forces(bodies):
-    # sums every acting force and convers it to acceleration with netwon's second law
     for body in bodies:
-        fx_tot = 0
-        fy_tot = 0
+        fx_tot, fy_tot = 0, 0
         for other in bodies:
             if other is body:
-                continue # makes sure that the body doesn't calc the force exerted on itself 
+                continue
             fx, fy = body.calc_force(other)
             fx_tot += fx
-            fy_tot += fy 
-    body.ax = fx_tot / body.mass
-    body.ay = fy_tot / body.mass
+            fy_tot += fy
+
+        body.ax = fx_tot / body.mass
+        body.ay = fy_tot / body.mass
+
 
 def update_positions(bodies, dt):
     for body in bodies:
-    # Update velocity from acceleration
         body.vx += body.ax * dt
         body.vy += body.ay * dt
-
-    # Update position from velocity
         body.x += body.vx * dt
         body.y += body.vy * dt
- 
-def draw_bodies(stdscr, bodies, scale, center_x, center_y):
-    stdscr.clear()
-    h, w = stdscr.getmaxyx()
+
+
+def print_positions(bodies, t):
+    print(f"\nTime: {t:.2f}")
     for body in bodies:
-        sx = int(w // 2 + (body.x - center_x) * scale)
-        sy = int(h // 2 + (body.y - center_y) * scale)
-        if 0 <= sx < w and 0 <= sy < h:
-            stdscr.addstr(sy, sx, "o", curses.color_pair(body.color))
-    stdscr.refresh()
+        print(f"{body.name:10s} x={body.x:10.3f}, y={body.y:10.3f}")
 
 
-def main(stdscr):
-    curses.curs_set(0)
-    curses.start_color()
-    curses.init_pair(1, curses.COLOR_YELLOW, curses.COLOR_BLACK)
-    curses.init_pair(2, curses.COLOR_BLUE, curses.COLOR_BLACK)
-    curses.init_pair(3, curses.COLOR_WHITE, curses.COLOR_BLACK)
+def main():
+    sun = CelestialBody(
+        "Sun", mass=1000, x=0, y=0, vx=0, vy=0, color="yellow", r=3
+    )
+    planet1 = CelestialBody(
+        "Planet1", mass=1, x=50, y=0, vx=0, vy=3.5, color="blue", r=1
+    )
+    planet2 = CelestialBody(
+        "Planet2", mass=2, x=100, y=0, vx=0, vy=2.5, color="green", r=1.5
+    )
 
-    sun = CelestialBody("Sun", 1000, 0, 0, 0, 0, 1, 3)
-    planet = CelestialBody("Planet", 1, 10, 0, 0, 3.5, 2, 1)
-    moon = CelestialBody("Moon", 0.1, 11, 0, 0, 4.2, 3, 1)
-    bodies = [sun, planet, moon]
+    bodies = [sun, planet1, planet2]
 
-    scale = 2  # zoom factor
-    dt = 0.02
+    dt = 0.05  # timestep
+    t = 0
 
-    while True:
-        update_forces(bodies)
-        update_positions(bodies, dt)
-        draw_bodies(stdscr, bodies, scale, 0, 0)
-        time.sleep(0.02)
+    try:
+        while True:
+            update_forces(bodies)
+            update_positions(bodies, dt)
+            print_positions(bodies, t)
+            t += dt
+            time.sleep(0.05)
+    except KeyboardInterrupt:
+        print("\nSimulation stopped.")
 
 
-if __name__ == "__main__":
-    curses.wrapper(main)   
+main()
