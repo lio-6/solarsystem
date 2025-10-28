@@ -183,7 +183,7 @@ def main(stdscr):
             
         sim.refresh()
         time.sleep(0.01)
-
+#abow!
 
 if __name__ == "__main__":
     curses.wrapper(main)
