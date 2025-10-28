@@ -160,6 +160,7 @@ def main(stdscr):
     zoom = 1
     camera_x, camera_y = 0, 0
     pause = False
+    show_new_body_win = False
 
     while True:
         sim.erase()
@@ -171,13 +172,6 @@ def main(stdscr):
 
         key = stdscr.getch()
 
-        if key == ord('p'):
-            pause = not pause
-        if key == ord('q'):
-            break
-        if key == ord('n'):
-            pause = True
-            UI_newBody(newBody_win)
 
         camera_y, camera_x = update_camera(key, camera_y, camera_x, zoom)
         zoom = update_zoom(key, zoom)
@@ -186,6 +180,18 @@ def main(stdscr):
 
             
         sim.refresh()
+
+        if key == ord('p'):
+            pause = not pause
+        if key == ord('q'):
+            break
+        if key == ord('n'):
+            show_new_body_win = True
+        
+        if show_new_body_win:
+            UI_newBody(newBody_win)
+            pause = True
+            newBody_win.refresh()
         time.sleep(0.01)
 #abow!
 
