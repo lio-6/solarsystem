@@ -1,6 +1,7 @@
 import math
 import time
 import curses
+import curses.panel as panel
 
 
 """Constants"""
@@ -53,19 +54,24 @@ def update_positions(bodies, dt):
         body.x += body.vx * dt
         body.y += body.vy * dt
 
-
-def draw(stdscr, bodies, camera_y, camera_x, zoom):
-    height, width = stdscr.getmaxyx()
+def draw(sim, bodies, camera_y, camera_x, zoom):
+    height, width = sim.getmaxyx()
+    color_map = {
+        "yellow": curses.color_pair(1),
+        "blue": curses.color_pair(2),
+        "green": curses.color_pair(3)
+    }
     for body in bodies:
         screen_x = int((body.x - camera_x) * zoom + width / 2)
         screen_y = int((body.y - camera_y) * zoom + height / 2)
         if 0 <= screen_x < width and 0 <= screen_y < height:
             try:
+                color_attr = color_map.get(body.color.lower(), 0)
                 for x in range(int(screen_x - body.r * zoom), int(screen_x + body.r * zoom) + 1):
                     for y in range(int(screen_y - body.r * zoom), int(screen_y + body.r * zoom) + 1):
                         distance = math.sqrt(((x - screen_x))**2 + ((y - screen_y)*2)**2)
-                        if abs(distance) <= body.r:
-                            stdscr.addch(y, x, '●')
+                        if abs(distance) <= body.r * zoom:
+                            sim.addch(y, x, '●', color_attr)
             except curses.error:
                 pass
 
@@ -91,47 +97,36 @@ def update_zoom(key, zoom):
     return zoom
 
 
-def bar(stdscr):
-    height, width = stdscr.getmaxyx()
+def bar(bar_win):
+    bar_win.clear() 
     
-    # Define bar dimensions
-    bar_height = 3
-    bar_width = width
-    bar_y = 0
-    bar_x = 0
-
-    # Create a window for the bar
-    bar_win = curses.newwin(bar_height, bar_width, bar_y, bar_x)
-
-    # Draw a border around it
-    bar_win.box()
-
-    # Define buttons
     buttons = [
         ("(q)", "Quit"),
         ("(p)", "Pause"),
         ("(n)", "New Body"),
         ("(s)", "Sim speed"),
         ("(a)", "Anchor Camera"),
-        ("(  )", "Move"),
+        ("( ←↑↓→ )", "Move"),
         ("(+/-)", "Zoom")
     ]
 
-    xpos = 2  # Padding from left
-    ypos = 1  # Inside the border
-    for key, text in buttons:
-        bar_win.addstr(ypos, xpos, key)
-        xpos += len(key) + 1
-        bar_win.addstr(ypos, xpos, text)
-        xpos += len(text) + 3
+    bar_win.box()
 
-    # Refresh only the bar window
+    xpos = 2  
+    ypos = 1  
+    for key, text in buttons:
+        try:
+            bar_win.addstr(ypos, xpos, key)
+            xpos += len(key) + 1
+            bar_win.addstr(ypos, xpos, text)
+            xpos += len(text) + 3
+        except curses.error:
+            pass 
+
     bar_win.refresh()
 
 
-
-def UI_newBody(stdscr):
-    newBody_win = curses.newwin(20, 40, 3,0)
+def UI_newBody(newBody_win):
     newBody_win.box()
     newBody_win.addstr(1, 1, "Add a new body (placeholder)")
     newBody_win.refresh()
@@ -142,6 +137,21 @@ def main(stdscr):
     stdscr.nodelay(True)
     stdscr.timeout(0)
     stdscr.keypad(True)
+    curses.start_color()
+    curses.use_default_colors()
+    
+    # Initialize color pairs
+    curses.init_pair(1, curses.COLOR_YELLOW, -1)
+    curses.init_pair(2, curses.COLOR_BLUE, -1)
+    curses.init_pair(3, curses.COLOR_GREEN, -1)
+    curses.init_pair(4, curses.COLOR_RED, -1)
+    curses.init_pair(5, curses.COLOR_CYAN, -1)
+    
+    height, width = stdscr.getmaxyx()
+
+    bar_win = curses.newwin(3, width, 0, 0)
+    newBody_win = curses.newwin(20, 40, 3,0)
+    sim = curses.newwin(height - 3, width, 3, 0)
 
     sun = CelestialBody("Sun", mass=1000, x=0, y=0, vx=0, vy=0, color="yellow", r=5)
     planet1 = CelestialBody("Planet1", mass=1, x=50, y=0, vx=0, vy=3.5, color="blue", r=3)
@@ -153,21 +163,28 @@ def main(stdscr):
     camera_x, camera_y = 0, 0
 
     while True:
-        stdscr.clear()
+        sim.erase()
+        bar(bar_win)  
+
         update_forces(bodies)
         update_positions(bodies, dt)
+
         key = stdscr.getch()
+
         camera_y, camera_x = update_camera(key, camera_y, camera_x, zoom)
         zoom = update_zoom(key, zoom)
-        bar(stdscr)
-        draw(stdscr, bodies, camera_y, camera_x, zoom)
+
+        draw(sim, bodies, camera_y, camera_x, zoom)
+
         if key == ord('q'):
             break
         if key == ord('n'):
-            UI_newBody(stdscr)
-        stdscr.refresh()
+            UI_newBody(newBody_win)
+            
+        sim.refresh()
         time.sleep(0.01)
 
 
 if __name__ == "__main__":
     curses.wrapper(main)
+
