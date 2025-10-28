@@ -1,13 +1,11 @@
 import math
 import time
 import curses
-import curses.panel as panel
 
 
 """Constants"""
 G = 1  # simplified gravitational constant for easier numbers
 
-pause = False
 
 class CelestialBody:
     def __init__(self, name, mass, x, y, vx, vy, color, r):
@@ -161,25 +159,31 @@ def main(stdscr):
     dt = 0.1
     zoom = 1
     camera_x, camera_y = 0, 0
+    pause = False
 
     while True:
         sim.erase()
         bar(bar_win)  
 
-        update_forces(bodies)
-        update_positions(bodies, dt)
+        if not pause:
+            update_forces(bodies)
+            update_positions(bodies, dt)
 
         key = stdscr.getch()
+
+        if key == ord('p'):
+            pause = not pause
+        if key == ord('q'):
+            break
+        if key == ord('n'):
+            pause = True
+            UI_newBody(newBody_win)
 
         camera_y, camera_x = update_camera(key, camera_y, camera_x, zoom)
         zoom = update_zoom(key, zoom)
 
         draw(sim, bodies, camera_y, camera_x, zoom)
 
-        if key == ord('q'):
-            break
-        if key == ord('n'):
-            UI_newBody(newBody_win)
             
         sim.refresh()
         time.sleep(0.01)
