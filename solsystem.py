@@ -73,7 +73,22 @@ def draw(sim, bodies, camera_y, camera_x, zoom):
             except curses.error:
                 pass
 
-
+def predict_trajectory(bodies, steps = 200, dt = 0.1):
+    positions = []
+    tempbodies = []
+    try:
+        for b in bodies:
+            tempbodies.append(CelestialBody(b.name, b.mass, b.x, b.y, b.vx, b.vy, b.color, b.r))
+    except Exception:
+        return
+    
+    for body in tempbodies:
+        for _ in range(steps):
+            update_forces(tempbodies)
+            update_positions(tempbodies,dt)
+            positions.append((body.x, body.y))
+    return positions
+    
 def update_camera(key, camera_y, camera_x, zoom):
     camera_speed = 10 / zoom
     if key == curses.KEY_UP:
@@ -104,6 +119,7 @@ def bar(bar_win):
         ("(n)", "New Body"),
         ("(s)", "Sim speed"),
         ("(a)", "Anchor Camera"),
+        ("(t)", "Show Trajectory"),
         ("( ←↑↓→ )", "Move"),
         ("(+/-)", "Zoom")
     ]
@@ -123,11 +139,82 @@ def bar(bar_win):
 
     bar_win.refresh()
 
+def Textbox(win, text):
+    key = win.getch()
+    try:
+        char = chr(key)
+    except ValueError:
+        return text
+    if key in (curses.KEY_BACKSPACE, 8, 127):
+        if len(text) > 0:
+            text = text[:-1]
+    elif 32 <= key <= 126:
+        text += char
+    return text
 
 def UI_newBody(newBody_win):
-    newBody_win.box()
-    newBody_win.addstr(1, 1, "Add a new body (placeholder)")
-    newBody_win.refresh()
+    newBody_win.keypad(True)
+    newBody_win.nodelay(True)
+
+    selection = 0 
+
+    fields = [
+        ("Name:","NewPlanet"),
+        ("Mass:","1.0"),
+        ("x:","0.0"),
+        ("y:","0.0"),
+        ("vx:","0.0"),
+        ("vy:","0.0"),
+        ("Color:","yellow"),
+        ("Radius:", "0,0"),
+    ]
+    while True:
+        newBody_win.erase()
+        newBody_win.box()
+        key = newBody_win.getch()
+
+        for i, (label, value) in enumerate(fields):
+            marker = "->" if selection == i else " "
+            newBody_win.addstr(1 + i, 2, f"{marker} {label} {value}")
+
+
+        if key == -1:
+            time.sleep(0.01)
+            continue
+
+        if key == 27: #Escape 
+            return None
+
+        if key == curses.KEY_DOWN:
+            if selection -1 < len(fields):
+                selection += 1
+        if key == curses.KEY_UP:
+            if selection + 1 > 0:
+                selection -= 1
+        if key == curses.KEY_ENTER:
+            try:
+                name = fields[0][1]
+                mass = float(fields[1][1])
+                x = float(fields[2][1])
+                y = float(fields[3][1])
+                vx = float(fields[4][1])
+                vy = float(fields[5][1])
+                color = fields[6][1]
+                r = float(fields[7][1])
+                new_body = CelestialBody(name, mass, x, y, vx, vy, color.lower(), r)
+                return new_body
+            except Exception:
+                continue
+
+        label, value = fields[selection]
+        if label == "Name" or "Color":
+            value = Textbox(newBody_win, value)
+        else:
+            if 48 <= key <= 57: #makes sure that it's a number (I'm so smart)
+                value = Textbox(newBody_win, value)
+        
+        fields[selection] = (label, value)
+        newBody_win.refresh()
 
 
 def main(stdscr):
@@ -160,7 +247,10 @@ def main(stdscr):
     zoom = 1
     camera_x, camera_y = 0, 0
     pause = False
+
     show_new_body_win = False
+    toggleTrajectory = False
+    ui = False
 
     while True:
         sim.erase()
@@ -173,22 +263,27 @@ def main(stdscr):
         key = stdscr.getch()
 
 
-        camera_y, camera_x = update_camera(key, camera_y, camera_x, zoom)
-        zoom = update_zoom(key, zoom)
+        if not ui:
+            camera_y, camera_x = update_camera(key, camera_y, camera_x, zoom)
+            zoom = update_zoom(key, zoom)
+
+            if key == ord('p'):
+                pause = not pause
+            if key == ord('q'):
+                break
+            if key == ord('n'):
+                show_new_body_win = True
+            if key == ord('t'):
+                toggleTrajectory = not toggleTrajectory
 
         draw(sim, bodies, camera_y, camera_x, zoom)
 
             
         sim.refresh()
 
-        if key == ord('p'):
-            pause = not pause
-        if key == ord('q'):
-            break
-        if key == ord('n'):
-            show_new_body_win = True
-        
+
         if show_new_body_win:
+            ui = True
             UI_newBody(newBody_win)
             pause = True
             newBody_win.refresh()
