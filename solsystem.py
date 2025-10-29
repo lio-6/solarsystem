@@ -1,4 +1,5 @@
 import math
+from os import wait
 import time
 import curses
 
@@ -139,17 +140,12 @@ def bar(bar_win):
 
     bar_win.refresh()
 
-def Textbox(win, text):
-    key = win.getch()
-    try:
-        char = chr(key)
-    except ValueError:
-        return text
-    if key in (curses.KEY_BACKSPACE, 8, 127):
+def Textbox(key, text):
+    if 32 <= key <= 126:
+        text += chr(key)
+    elif key in (curses.KEY_BACKSPACE, 8, 127):
         if len(text) > 0:
             text = text[:-1]
-    elif 32 <= key <= 126:
-        text += char
     return text
 
 def UI_newBody(newBody_win):
@@ -166,7 +162,7 @@ def UI_newBody(newBody_win):
         ("vx:","0.0"),
         ("vy:","0.0"),
         ("Color:","yellow"),
-        ("Radius:", "0,0"),
+        ("Radius:", "1.0"),
     ]
     while True:
         newBody_win.erase()
@@ -177,10 +173,6 @@ def UI_newBody(newBody_win):
             marker = "->" if selection == i else " "
             newBody_win.addstr(1 + i, 2, f"{marker} {label} {value}")
 
-
-        if key == -1:
-            time.sleep(0.01)
-            continue
 
         if key == 27: #Escape 
             return None
@@ -208,13 +200,14 @@ def UI_newBody(newBody_win):
 
         label, value = fields[selection]
         if label == "Name" or "Color":
-            value = Textbox(newBody_win, value)
+            value = Textbox(key, value)
         else:
             if 48 <= key <= 57: #makes sure that it's a number (I'm so smart)
-                value = Textbox(newBody_win, value)
+                value = Textbox(key, value)
         
         fields[selection] = (label, value)
         newBody_win.refresh()
+        time.sleep(0.1)
 
 
 def main(stdscr):
@@ -286,9 +279,16 @@ def main(stdscr):
             ui = True
             UI_newBody(newBody_win)
             pause = True
+            new_body = UI_newBody(newBody_win)
+            if new_body:
+                bodies.append(new_body)
+
+            show_new_body_win = False
+            ui = False
+            pause = False
+            newBody_win.erase()
             newBody_win.refresh()
         time.sleep(0.01)
-#abow!
 
 if __name__ == "__main__":
     curses.wrapper(main)
