@@ -1,5 +1,4 @@
 import math
-from os import wait
 import time
 import curses
 
@@ -74,21 +73,33 @@ def draw(sim, bodies, camera_y, camera_x, zoom):
             except curses.error:
                 pass
 
-def predict_trajectory(bodies, steps = 200, dt = 0.1):
-    positions = []
-    tempbodies = []
-    try:
-        for b in bodies:
-            tempbodies.append(CelestialBody(b.name, b.mass, b.x, b.y, b.vx, b.vy, b.color, b.r))
-    except Exception:
-        return
+def predict_trajectory(bodies, steps=200, dt=0.1):
+    # Deep copy bodies so we don't affect the real ones
+    tempbodies = [CelestialBody(b.name, b.mass, b.x, b.y, b.vx, b.vy, b.color, b.r) for b in bodies]
     
-    for body in tempbodies:
-        for _ in range(steps):
-            update_forces(tempbodies)
-            update_positions(tempbodies,dt)
-            positions.append((body.x, body.y))
-    return positions
+    # Store trajectories for each body
+    trajectories = {b.name: [] for b in tempbodies}
+
+    for _ in range(steps):
+        update_forces(tempbodies)
+        update_positions(tempbodies, dt)
+        for b in tempbodies:
+            trajectories[b.name].append((b.x, b.y))
+    
+    return trajectories
+
+def draw_trajectory(stdscr, bodies, trajectories, camera_y, camera_x, zoom):
+    height, width = stdscr.getmaxyx()
+    for body in bodies:
+        for (x, y) in trajectories[body.name]:
+            screen_x = int((x - camera_x) * zoom + width / 2)
+            screen_y = int((y - camera_y) * zoom + height / 2)
+            if 0 <= screen_x < width and 0 <= screen_y < height:
+                try:
+                    stdscr.addch(screen_y, screen_x, '.')
+                except curses.error:
+                    pass
+
     
 def update_camera(key, camera_y, camera_x, zoom):
     camera_speed = 10 / zoom
@@ -183,7 +194,7 @@ def UI_newBody(newBody_win):
         if key == curses.KEY_UP:
             if selection + 1 > 0:
                 selection -= 1
-        if key == curses.KEY_ENTER:
+        if key in (curses.KEY_ENTER, 10, 13):
             try:
                 name = fields[0][1]
                 mass = float(fields[1][1])
@@ -199,10 +210,10 @@ def UI_newBody(newBody_win):
                 continue
 
         label, value = fields[selection]
-        if label == "Name" or "Color":
+        if label in ("Name:", "Color:"):
             value = Textbox(key, value)
         else:
-            if 48 <= key <= 57: #makes sure that it's a number (I'm so smart)
+            if 48 <= key <= 57 or key in (46, 45, curses.KEY_BACKSPACE, 8, 127):
                 value = Textbox(key, value)
         
         fields[selection] = (label, value)
@@ -272,12 +283,12 @@ def main(stdscr):
         draw(sim, bodies, camera_y, camera_x, zoom)
 
             
-        sim.refresh()
 
+        if toggleTrajectory:
+            draw_trajectory(sim, bodies, predict_trajectory(bodies), camera_y, camera_x, zoom)
 
         if show_new_body_win:
             ui = True
-            UI_newBody(newBody_win)
             pause = True
             new_body = UI_newBody(newBody_win)
             if new_body:
@@ -288,8 +299,10 @@ def main(stdscr):
             pause = False
             newBody_win.erase()
             newBody_win.refresh()
+
+
+        sim.refresh()
         time.sleep(0.01)
 
 if __name__ == "__main__":
     curses.wrapper(main)
-
