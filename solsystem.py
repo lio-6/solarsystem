@@ -2,7 +2,6 @@ import math
 import time
 import curses
 
-
 """Constants"""
 G = 1  # simplified gravitational constant for easier numbers
 
@@ -57,7 +56,9 @@ def draw(sim, bodies, camera_y, camera_x, zoom):
     color_map = {
         "yellow": curses.color_pair(1),
         "blue": curses.color_pair(2),
-        "green": curses.color_pair(3)
+        "green": curses.color_pair(3),
+        "red": curses.color_pair(4),
+        "cyan": curses.color_pair(5)
     }
     for body in bodies:
         screen_x = int((body.x - camera_x) * zoom + width / 2)
@@ -73,7 +74,7 @@ def draw(sim, bodies, camera_y, camera_x, zoom):
             except curses.error:
                 pass
 
-def predict_trajectory(bodies, steps=200, dt=0.1):
+def predict_trajectory(bodies, steps=500, dt=0.1):
     # Deep copy bodies so we don't affect the real ones
     tempbodies = [CelestialBody(b.name, b.mass, b.x, b.y, b.vx, b.vy, b.color, b.r) for b in bodies]
     
@@ -129,9 +130,9 @@ def bar(bar_win):
         ("(q)", "Quit"),
         ("(p)", "Pause"),
         ("(n)", "New Body"),
-        ("(s)", "Sim speed"),
-        ("(a)", "Anchor Camera"),
         ("(t)", "Show Trajectory"),
+        ("(e)", "Examples"),
+        ("(c)", "Clear"),
         ("( ←↑↓→ )", "Move"),
         ("(+/-)", "Zoom")
     ]
@@ -159,9 +160,11 @@ def Textbox(key, text):
             text = text[:-1]
     return text
 
-def UI_newBody(newBody_win):
+def UI_newBody(newBody_win, preview_win, bodies, camera_y, camera_x, zoom):
     newBody_win.keypad(True)
     newBody_win.nodelay(True)
+
+    run_sim = True
 
     selection = 0 
 
@@ -184,17 +187,6 @@ def UI_newBody(newBody_win):
             marker = "->" if selection == i else " "
             newBody_win.addstr(1 + i, 2, f"{marker} {label} {value}")
 
-
-        if key == 27: #Escape 
-            return None
-
-        if key == curses.KEY_DOWN:
-            if selection -1 < len(fields):
-                selection += 1
-        if key == curses.KEY_UP:
-            if selection + 1 > 0:
-                selection -= 1
-        if key in (curses.KEY_ENTER, 10, 13):
             try:
                 name = fields[0][1]
                 mass = float(fields[1][1])
@@ -204,6 +196,30 @@ def UI_newBody(newBody_win):
                 vy = float(fields[5][1])
                 color = fields[6][1]
                 r = float(fields[7][1])
+            except Exception:
+                continue
+
+            if run_sim:
+                preview_win.erase()
+                testBody = CelestialBody(name, mass, x, y, vx, vy, color, r)
+                testBodies = [CelestialBody(b.name, b.mass, b.x, b.y, b.vx, b.vy, b.color, b.r) for b in bodies]
+                testBodies.append(testBody)
+                draw_trajectory(preview_win,testBodies,predict_trajectory(testBodies),camera_y, camera_x, zoom)
+                preview_win.refresh()
+                run_sim = False
+
+        if key == 27: #Escape 
+            return None
+
+        if key == curses.KEY_DOWN:
+            if selection < 7:
+                selection += 1
+        if key == curses.KEY_UP:
+            if selection > 0:
+                selection -= 1
+        if key in (curses.KEY_ENTER, 10, 13):
+
+            try:
                 new_body = CelestialBody(name, mass, x, y, vx, vy, color.lower(), r)
                 return new_body
             except Exception:
@@ -215,10 +231,11 @@ def UI_newBody(newBody_win):
         else:
             if 48 <= key <= 57 or key in (46, 45, curses.KEY_BACKSPACE, 8, 127):
                 value = Textbox(key, value)
+                run_sim = True
         
         fields[selection] = (label, value)
         newBody_win.refresh()
-        time.sleep(0.1)
+        time.sleep(0.01)
 
 
 def main(stdscr):
@@ -241,11 +258,11 @@ def main(stdscr):
     bar_win = curses.newwin(3, width, 0, 0)
     newBody_win = curses.newwin(20, 40, 3,0)
     sim = curses.newwin(height - 3, width, 3, 0)
+    preview_win = curses.newwin(height - 3, width, 3, 0)
 
-    sun = CelestialBody("Sun", mass=1000, x=0, y=0, vx=0, vy=0, color="yellow", r=5)
-    planet1 = CelestialBody("Planet1", mass=1, x=50, y=0, vx=0, vy=3.5, color="blue", r=3)
-    planet2 = CelestialBody("Planet2", mass=2, x=100, y=0, vx=0, vy=2.5, color="green", r=4)
-    bodies = [sun, planet1, planet2]
+
+
+    bodies = []
 
     dt = 0.1
     zoom = 1
@@ -255,6 +272,7 @@ def main(stdscr):
     show_new_body_win = False
     toggleTrajectory = False
     ui = False
+    example_mode = 0
 
     while True:
         sim.erase()
@@ -279,18 +297,44 @@ def main(stdscr):
                 show_new_body_win = True
             if key == ord('t'):
                 toggleTrajectory = not toggleTrajectory
+            if key == ord('e'):
 
-        draw(sim, bodies, camera_y, camera_x, zoom)
+                if example_mode == 0:
+                    sun = CelestialBody("Sun", mass=1000, x=0, y=0, vx=0, vy=0, color="yellow", r=5)
+                    planet1 = CelestialBody("Planet1", mass=1, x=50, y=0, vx=0, vy=3.5, color="blue", r=3)
+                    planet2 = CelestialBody("Planet2", mass=2, x=100, y=0, vx=0, vy=2.5, color="green", r=4)
+                    bodies = [sun, planet1, planet2]
+                elif example_mode == 1:
+                    # Binary stars orbiting each other
+                    star1 = CelestialBody("Star A", mass=500, x=-15, y=0, vx=0, vy=1.8, color="yellow", r=4)
+                    star2 = CelestialBody("Star B", mass=500, x=15, y=0, vx=0, vy=-1.8, color="red", r=4)
 
-            
+                    # Closer planets in circumbinary orbit
+                    planet1 = CelestialBody("Planet Alpha", mass=5, x=0, y=60, vx=-3.5, vy=0, color="blue", r=2)
+                    planet2 = CelestialBody("Planet Beta", mass=3, x=0, y=-90, vx=3.0, vy=0, color="green", r=2)
+
+                    bodies = [star1, star2, planet1, planet2]
+                else:
+                    b1 = CelestialBody("Body1", 1, x = 0.9700436 * 5, y = -0.24308753 * 5, vx = 0.466203685 / math.sqrt(5), vy = 0.43236573 / math.sqrt(5), color = "red", r = 1.0)
+                    b2 = CelestialBody("Body2", 1, x = -0.9700436 * 5, y = 0.24308753 * 5, vx = 0.466203685 / math.sqrt(5), vy = 0.43236573 / math.sqrt(5), color = "blue", r = 1.0)
+                    b3 = CelestialBody("Body3", 1, x = 0.0, y = 0.0, vx = -0.93240737 / math.sqrt(5), vy = -0.86473146 / math.sqrt(5), color = "green", r = 1.0)
+                    bodies = [b1, b2, b3]
+
+                example_mode = (example_mode + 1) % 3
+
+            if key == ord('c'):
+                bodies = []
 
         if toggleTrajectory:
             draw_trajectory(sim, bodies, predict_trajectory(bodies), camera_y, camera_x, zoom)
 
+        draw(sim, bodies, camera_y, camera_x, zoom)
+
+
         if show_new_body_win:
             ui = True
             pause = True
-            new_body = UI_newBody(newBody_win)
+            new_body = UI_newBody(newBody_win, preview_win, bodies, camera_y, camera_x, zoom)
             if new_body:
                 bodies.append(new_body)
 
