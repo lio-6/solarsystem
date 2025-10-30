@@ -261,7 +261,7 @@ def main(stdscr):
     preview_win = curses.newwin(height - 3, width, 3, 0)
 
 
-
+    #test
     bodies = []
 
     dt = 0.1
